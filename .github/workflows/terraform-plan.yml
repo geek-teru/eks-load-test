@@ -1,0 +1,89 @@
+name: terraform-plan
+run-name: terraform-plan - ${{ inputs.environment || 'dev / prd' }}
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: environment
+        description: 'target environment'
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # PR では dev / prd の両方を、手動実行では選んだ環境だけを対象にする。
+  # 手動実行かどうかは inputs.environment が空かどうかで判別できる
+  # （pull_request では inputs が空になる）
+  target:
+    runs-on: ubuntu-latest
+
+    outputs:
+      environments: ${{ steps.resolve.outputs.environments }}
+
+    steps:
+      - name: Resolve target environments
+        id: resolve
+        env:
+          # 入力をシェルに直接展開しない
+          TARGET_ENV: ${{ inputs.environment }}
+        run: |
+          if [ -n "$TARGET_ENV" ]; then
+            echo "environments=[\"$TARGET_ENV\"]" >> "$GITHUB_OUTPUT"
+          else
+            echo 'environments=["dev","prd"]' >> "$GITHUB_OUTPUT"
+          fi
+
+  plan:
+    needs: target
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        env: ${{ fromJSON(needs.target.outputs.environments) }}
+
+    environment: ${{ matrix.env }}
+
+    defaults:
+      run:
+        working-directory: terraform/environments/${{ matrix.env }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: AWS login
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_CICD_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Resolve Terraform version
+        id: terraform-version
+        run: echo "version=$(cat "$GITHUB_WORKSPACE/.terraform-version")" >> "$GITHUB_OUTPUT"
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ steps.terraform-version.outputs.version }}
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive
+        id: fmt
+
+      - name: terraform init
+        run: terraform init -input=false
+        id: init
+
+      - name: terraform validate
+        run: terraform validate -no-color
+        id: validate
+
+      - name: terraform plan
+        run: terraform plan -no-color -input=false
+        id: plan

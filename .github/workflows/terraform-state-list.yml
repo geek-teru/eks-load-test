@@ -1,0 +1,53 @@
+name: terraform-state-list
+run-name: terraform-state-list - ${{ inputs.environment }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: environment
+        description: 'target environment'
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs: 
+  state-list:
+    # only default branch
+    if: ${{ github.ref == 'refs/heads/main' }}
+    
+    runs-on: ubuntu-latest
+    
+    environment: ${{ inputs.environment }}
+
+    defaults:
+      run:
+        working-directory: terraform/environments/${{ inputs.environment }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: AWS login
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_CICD_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      
+      - name: Resolve Terraform version
+        id: terraform-version
+        run: echo "version=$(cat "$GITHUB_WORKSPACE/.terraform-version")" >> "$GITHUB_OUTPUT"
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ steps.terraform-version.outputs.version }}
+
+      - name: terraform init
+        run: terraform init -input=false
+        id: init
+
+      - name: terraform state list
+        run: terraform state list -no-color
+        id: state-list
