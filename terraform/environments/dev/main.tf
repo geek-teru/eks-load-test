@@ -1,24 +1,20 @@
 # ----------------------------------------
 # Data Sources
 # ----------------------------------------
-# 共通 VPC（terraform-aws-cmn-vpc）を Name タグで参照する
-data "aws_vpc" "cmn" {
-  filter {
-    name   = "tag:Name"
-    values = ["${var.env}-${var.cmn_service_name}-vpc"]
+# 共通 VPC（terraform-aws-cmn-vpc）の state から VPC とサブネットを参照する
+data "terraform_remote_state" "cmn_vpc" {
+  backend = "s3"
+
+  config = {
+    bucket = "dev-terraform-aws"
+    key    = "cmn-vpc/terraform.tfstate"
+    region = "ap-northeast-1"
   }
 }
 
-data "aws_subnets" "cmn_private" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.cmn.id]
-  }
-
-  filter {
-    name   = "tag:Name"
-    values = ["${var.env}-${var.cmn_service_name}-private-*"]
-  }
+locals {
+  cmn_vpc_id             = data.terraform_remote_state.cmn_vpc.outputs.vpc.cmn_vpc.id
+  cmn_private_subnet_ids = data.terraform_remote_state.cmn_vpc.outputs.vpc.cmn_vpc_priv_subnet_ids
 }
 
 # ----------------------------------------
@@ -29,17 +25,17 @@ module "eks" {
 
   env          = var.env
   service_name = var.service_name
-  vpc_id       = data.aws_vpc.cmn.id
-  subnet_ids   = data.aws_subnets.cmn_private.ids
+  vpc_id       = local.cmn_vpc_id
+  subnet_ids   = local.cmn_private_subnet_ids
 }
 
 # ----------------------------------------
 # Outputs
 # ----------------------------------------
 output "cmn_vpc_id" {
-  value = data.aws_vpc.cmn.id
+  value = local.cmn_vpc_id
 }
 
 output "cmn_private_subnet_ids" {
-  value = data.aws_subnets.cmn_private.ids
+  value = local.cmn_private_subnet_ids
 }
