@@ -1,9 +1,9 @@
 # ----------------------------------------
 # Modules
 # ----------------------------------------
-# module "example" {
-#   source = "../../modules/example"
-#
-#   env          = var.env
-#   service_name = var.service_name
-# }
+module "eks" {
+  source = "../../modules/eks"
+
+  env          = var.env
+  service_name = var.service_name
+}
