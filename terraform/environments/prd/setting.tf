@@ -28,9 +28,10 @@ terraform {
 
   backend "s3" {
     # bucket / key はプロジェクトごとに変更する
-    bucket  = "prd-terraform-aws"
-    key     = "eks-load-test/terraform.tfstate"
-    region  = "ap-northeast-1"
-    encrypt = true
+    bucket       = "prd-terraform-aws-775538353788-ap-northeast-1"
+    key          = "eks-load-test/terraform.tfstate"
+    region       = "ap-northeast-1"
+    encrypt      = true
+    use_lockfile = true
   }
 }
