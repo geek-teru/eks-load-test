@@ -27,6 +27,8 @@ module "eks" {
   service_name = var.service_name
   vpc_id       = local.cmn_vpc_id
   subnet_ids   = local.cmn_private_subnet_ids
+
+  cluster_admin_principal_arns = var.cluster_admin_principal_arns
 }
 
 # ----------------------------------------
@@ -38,4 +40,12 @@ output "cmn_vpc_id" {
 
 output "cmn_private_subnet_ids" {
   value = local.cmn_private_subnet_ids
+}
+
+output "eks_cluster_name" {
+  value = module.eks.eks_cluster_name
+}
+
+output "cloudshell_security_group_id" {
+  value = module.eks.cloudshell_security_group_id
 }
