@@ -23,8 +23,7 @@ locals {
   cmn_vpc_id             = data.terraform_remote_state.cmn_vpc.outputs.vpc.cmn_vpc.id
   cmn_private_subnet_ids = data.terraform_remote_state.cmn_vpc.outputs.vpc.cmn_vpc_priv_subnet_ids
 
-  # ARN は秘密情報ではないため sensitive を外す（for_each に sensitive な値は渡せない）
-  cluster_admin_principal_arns = [trimspace(nonsensitive(data.aws_secretsmanager_secret_version.cluster_admin_principal_arns.secret_string))]
+  cluster_admin_principal_arn = trimspace(data.aws_secretsmanager_secret_version.cluster_admin_principal_arns.secret_string)
 }
 
 # ----------------------------------------
@@ -38,7 +37,7 @@ module "eks" {
   vpc_id       = local.cmn_vpc_id
   subnet_ids   = local.cmn_private_subnet_ids
 
-  cluster_admin_principal_arns = local.cluster_admin_principal_arns
+  cluster_admin_principal_arn = local.cluster_admin_principal_arn
 }
 
 # ----------------------------------------
