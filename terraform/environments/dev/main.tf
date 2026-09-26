@@ -45,7 +45,3 @@ output "cmn_private_subnet_ids" {
 output "eks_cluster_name" {
   value = module.eks.eks_cluster_name
 }
-
-output "cloudshell_security_group_id" {
-  value = module.eks.cloudshell_security_group_id
-}

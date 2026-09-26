@@ -43,33 +43,3 @@ resource "aws_eks_access_policy_association" "cluster_admin" {
     type = "cluster"
   }
 }
-
-# ----------------------------------------
-# CloudShell Security Group
-# ----------------------------------------
-# CloudShell（VPC 環境）に付ける SG。プライベートエンドポイントへはこの SG から届ける
-resource "aws_security_group" "cloudshell" {
-  name        = "${var.env}-${var.service_name}-cloudshell"
-  description = "CloudShell VPC environment for ${var.env}-${var.service_name}"
-  vpc_id      = var.vpc_id
-
-  tags = {
-    Name = "${var.env}-${var.service_name}-cloudshell"
-  }
-}
-
-resource "aws_vpc_security_group_egress_rule" "cloudshell_all" {
-  security_group_id = aws_security_group.cloudshell.id
-  cidr_ipv4         = "0.0.0.0/0"
-  ip_protocol       = "-1"
-}
-
-# クラスタ SG への 443 を CloudShell の SG から許可する
-resource "aws_vpc_security_group_ingress_rule" "cluster_from_cloudshell" {
-  security_group_id            = aws_eks_cluster.eks_cluster.vpc_config[0].cluster_security_group_id
-  referenced_security_group_id = aws_security_group.cloudshell.id
-  from_port                    = 443
-  to_port                      = 443
-  ip_protocol                  = "tcp"
-  description                  = "kubectl from CloudShell"
-}
