@@ -15,7 +15,6 @@ variable "subnet_ids" {
 }
 
 # クラスタ管理者（AmazonEKSClusterAdminPolicy）にする IAM プリンシパルの ARN
-variable "cluster_admin_principal_arns" {
-  type    = list(string)
-  default = []
+variable "cluster_admin_principal_arn" {
+  type = string
 }
