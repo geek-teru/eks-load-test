@@ -1,14 +1,7 @@
-# vpc_id を渡した環境（dev）だけクラスタを作る
-locals {
-  create_cluster = var.vpc_id != null
-}
-
 # ----------------------------------------
 # EKS Cluster
 # ----------------------------------------
 resource "aws_eks_cluster" "eks_cluster" {
-  count = local.create_cluster ? 1 : 0
-
   name     = "${var.env}-${var.service_name}"
   role_arn = aws_iam_role.eks_cluster.arn
 
@@ -32,9 +25,9 @@ resource "aws_eks_cluster" "eks_cluster" {
 # ----------------------------------------
 # CloudShell から kubectl を使う IAM プリンシパルをクラスタ管理者にする
 resource "aws_eks_access_entry" "cluster_admin" {
-  for_each = local.create_cluster ? toset(var.cluster_admin_principal_arns) : toset([])
+  for_each = toset(var.cluster_admin_principal_arns)
 
-  cluster_name  = aws_eks_cluster.eks_cluster[0].name
+  cluster_name  = aws_eks_cluster.eks_cluster.name
   principal_arn = each.value
   type          = "STANDARD"
 }
@@ -56,8 +49,6 @@ resource "aws_eks_access_policy_association" "cluster_admin" {
 # ----------------------------------------
 # CloudShell（VPC 環境）に付ける SG。プライベートエンドポイントへはこの SG から届ける
 resource "aws_security_group" "cloudshell" {
-  count = local.create_cluster ? 1 : 0
-
   name        = "${var.env}-${var.service_name}-cloudshell"
   description = "CloudShell VPC environment for ${var.env}-${var.service_name}"
   vpc_id      = var.vpc_id
@@ -68,19 +59,15 @@ resource "aws_security_group" "cloudshell" {
 }
 
 resource "aws_vpc_security_group_egress_rule" "cloudshell_all" {
-  count = local.create_cluster ? 1 : 0
-
-  security_group_id = aws_security_group.cloudshell[0].id
+  security_group_id = aws_security_group.cloudshell.id
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1"
 }
 
 # クラスタ SG への 443 を CloudShell の SG から許可する
 resource "aws_vpc_security_group_ingress_rule" "cluster_from_cloudshell" {
-  count = local.create_cluster ? 1 : 0
-
-  security_group_id            = aws_eks_cluster.eks_cluster[0].vpc_config[0].cluster_security_group_id
-  referenced_security_group_id = aws_security_group.cloudshell[0].id
+  security_group_id            = aws_eks_cluster.eks_cluster.vpc_config[0].cluster_security_group_id
+  referenced_security_group_id = aws_security_group.cloudshell.id
   from_port                    = 443
   to_port                      = 443
   ip_protocol                  = "tcp"

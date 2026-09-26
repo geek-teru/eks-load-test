@@ -1,9 +1,4 @@
 # ----------------------------------------
 # Modules
 # ----------------------------------------
-module "eks" {
-  source = "../../modules/eks"
-
-  env          = var.env
-  service_name = var.service_name
-}
+# EKS は dev でしか立てないため、prd では module を呼ばない

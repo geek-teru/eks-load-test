@@ -7,13 +7,11 @@ variable "service_name" {
 }
 
 variable "vpc_id" {
-  type    = string
-  default = null
+  type = string
 }
 
 variable "subnet_ids" {
-  type    = list(string)
-  default = []
+  type = list(string)
 }
 
 # クラスタ管理者（AmazonEKSClusterAdminPolicy）にする IAM プリンシパルの ARN
