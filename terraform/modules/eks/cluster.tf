@@ -43,3 +43,16 @@ resource "aws_eks_access_policy_association" "cluster_admin" {
     type = "cluster"
   }
 }
+
+# ----------------------------------------
+# Cluster Security Group Rules
+# ----------------------------------------
+# エンドポイントはプライベートのみ（パブリック IP を持たない）ため、届くのは VPC 内からだけ
+resource "aws_vpc_security_group_ingress_rule" "cluster_https" {
+  security_group_id = aws_eks_cluster.eks_cluster.vpc_config[0].cluster_security_group_id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
+  description       = "kubectl to private endpoint"
+}
