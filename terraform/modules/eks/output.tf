@@ -17,3 +17,11 @@ output "eks_cluster_endpoint" {
 output "eks_cluster_security_group_id" {
   value = aws_eks_cluster.eks_cluster.vpc_config[0].cluster_security_group_id
 }
+
+output "argocd_role_arn" {
+  value = aws_iam_role.eks_argocd.arn
+}
+
+output "argocd_server_url" {
+  value = aws_eks_capability.argocd.configuration[0].argo_cd[0].server_url
+}
