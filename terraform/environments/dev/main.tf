@@ -18,7 +18,7 @@ data "aws_secretsmanager_secret_version" "cluster_admin_principal_arns" {
 }
 
 # Identity Center（terraform-aws-cmn-sso で管理）のインスタンスと Argo CD の管理者グループ
-data "aws_ssoadmin_instances" "this" {}
+data "aws_ssoadmin_instances" "identity_center" {}
 
 data "aws_identitystore_group" "argocd_admins" {
   identity_store_id = local.idc_identity_store_id
@@ -39,8 +39,8 @@ locals {
 
   cluster_admin_principal_arn = trimspace(data.aws_secretsmanager_secret_version.cluster_admin_principal_arns.secret_string)
 
-  idc_instance_arn      = tolist(data.aws_ssoadmin_instances.this.arns)[0]
-  idc_identity_store_id = tolist(data.aws_ssoadmin_instances.this.identity_store_ids)[0]
+  idc_instance_arn      = tolist(data.aws_ssoadmin_instances.identity_center.arns)[0]
+  idc_identity_store_id = tolist(data.aws_ssoadmin_instances.identity_center.identity_store_ids)[0]
 }
 
 # ----------------------------------------
