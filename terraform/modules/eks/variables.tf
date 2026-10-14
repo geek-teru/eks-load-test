@@ -18,3 +18,17 @@ variable "subnet_ids" {
 variable "cluster_admin_principal_arn" {
   type = string
 }
+
+# Argo CD の UI へのログインに使う Identity Center のインスタンス ARN とリージョン
+variable "argocd_idc_instance_arn" {
+  type = string
+}
+
+variable "argocd_idc_region" {
+  type = string
+}
+
+# Argo CD の ADMIN にする Identity Center のグループ ID
+variable "argocd_admin_group_id" {
+  type = string
+}
