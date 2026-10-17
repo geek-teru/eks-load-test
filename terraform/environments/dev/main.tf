@@ -46,19 +46,36 @@ locals {
 # ----------------------------------------
 # Modules
 # ----------------------------------------
-module "eks" {
-  source = "../../modules/eks"
+module "eks_cluster" {
+  source = "../../modules/eks-cluster"
 
   env          = var.env
   service_name = var.service_name
-  vpc_id       = local.cmn_vpc_id
   subnet_ids   = local.cmn_private_subnet_ids
 
   cluster_admin_principal_arn = local.cluster_admin_principal_arn
+}
 
-  argocd_idc_instance_arn = local.idc_instance_arn
-  argocd_idc_region       = "ap-northeast-1"
-  argocd_admin_group_id   = data.aws_identitystore_group.argocd_admins.group_id
+module "eks_fargate" {
+  source = "../../modules/eks-fargate"
+
+  env          = var.env
+  service_name = var.service_name
+  cluster_name = module.eks_cluster.eks_cluster_name
+  subnet_ids   = local.cmn_private_subnet_ids
+  namespaces   = ["kube-system", "default"]
+}
+
+module "eks_argocd" {
+  source = "../../modules/eks-argocd"
+
+  env          = var.env
+  service_name = var.service_name
+  cluster_name = module.eks_cluster.eks_cluster_name
+
+  idc_instance_arn = local.idc_instance_arn
+  idc_region       = "ap-northeast-1"
+  admin_group_id   = data.aws_identitystore_group.argocd_admins.group_id
 }
 
 # ----------------------------------------
@@ -73,9 +90,88 @@ output "cmn_private_subnet_ids" {
 }
 
 output "eks_cluster_name" {
-  value = module.eks.eks_cluster_name
+  value = module.eks_cluster.eks_cluster_name
 }
 
 output "argocd_server_url" {
-  value = module.eks.argocd_server_url
+  value = module.eks_argocd.argocd_server_url
+}
+
+# ----------------------------------------
+# Moved
+# ----------------------------------------
+# module "eks" を eks_cluster / eks_fargate / eks_argocd に分けたため、state のアドレスを付け替える
+moved {
+  from = module.eks.aws_iam_role.eks_cluster
+  to   = module.eks_cluster.aws_iam_role.eks_cluster
+}
+
+moved {
+  from = module.eks.aws_iam_role_policy_attachment.eks_cluster
+  to   = module.eks_cluster.aws_iam_role_policy_attachment.eks_cluster
+}
+
+moved {
+  from = module.eks.aws_eks_cluster.eks_cluster
+  to   = module.eks_cluster.aws_eks_cluster.eks_cluster
+}
+
+moved {
+  from = module.eks.aws_vpc_security_group_ingress_rule.cluster_https
+  to   = module.eks_cluster.aws_vpc_security_group_ingress_rule.cluster_https
+}
+
+moved {
+  from = module.eks.aws_eks_access_entry.cluster_admin
+  to   = module.eks_cluster.aws_eks_access_entry.cluster_admin
+}
+
+moved {
+  from = module.eks.aws_eks_access_policy_association.cluster_admin
+  to   = module.eks_cluster.aws_eks_access_policy_association.cluster_admin
+}
+
+moved {
+  from = module.eks.aws_eks_addon.vpc_cni
+  to   = module.eks_cluster.aws_eks_addon.vpc_cni
+}
+
+moved {
+  from = module.eks.aws_eks_addon.kube_proxy
+  to   = module.eks_cluster.aws_eks_addon.kube_proxy
+}
+
+moved {
+  from = module.eks.aws_iam_role.eks_fargate_pod
+  to   = module.eks_fargate.aws_iam_role.eks_fargate_pod
+}
+
+moved {
+  from = module.eks.aws_iam_role_policy_attachment.eks_fargate_pod
+  to   = module.eks_fargate.aws_iam_role_policy_attachment.eks_fargate_pod
+}
+
+moved {
+  from = module.eks.aws_eks_fargate_profile.eks_fargate
+  to   = module.eks_fargate.aws_eks_fargate_profile.eks_fargate
+}
+
+moved {
+  from = module.eks.aws_eks_addon.coredns
+  to   = module.eks_fargate.aws_eks_addon.coredns
+}
+
+moved {
+  from = module.eks.aws_iam_role.eks_argocd
+  to   = module.eks_argocd.aws_iam_role.eks_argocd
+}
+
+moved {
+  from = module.eks.aws_eks_capability.argocd
+  to   = module.eks_argocd.aws_eks_capability.argocd
+}
+
+moved {
+  from = module.eks.aws_eks_access_policy_association.argocd
+  to   = module.eks_argocd.aws_eks_access_policy_association.argocd
 }

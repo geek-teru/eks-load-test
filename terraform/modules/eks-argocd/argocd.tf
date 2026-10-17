@@ -3,7 +3,7 @@
 # ----------------------------------------
 # マネージドの Argo CD。UI へのログインは Identity Center で行う
 resource "aws_eks_capability" "argocd" {
-  cluster_name              = aws_eks_cluster.eks_cluster.name
+  cluster_name              = var.cluster_name
   capability_name           = "${var.env}-${var.service_name}-argocd"
   type                      = "ARGOCD"
   role_arn                  = aws_iam_role.eks_argocd.arn
@@ -14,15 +14,15 @@ resource "aws_eks_capability" "argocd" {
       namespace = "argocd"
 
       aws_idc {
-        idc_instance_arn = var.argocd_idc_instance_arn
-        idc_region       = var.argocd_idc_region
+        idc_instance_arn = var.idc_instance_arn
+        idc_region       = var.idc_region
       }
 
       rbac_role_mapping {
         role = "ADMIN"
 
         identity {
-          id   = var.argocd_admin_group_id
+          id   = var.admin_group_id
           type = "SSO_GROUP"
         }
       }
@@ -36,7 +36,7 @@ resource "aws_eks_capability" "argocd" {
 # capability のロールのアクセスエントリは capability の作成時に自動で作られるため、
 # エントリは作らずポリシーだけを紐づけ、同じクラスタへデプロイできるようにする
 resource "aws_eks_access_policy_association" "argocd" {
-  cluster_name  = aws_eks_cluster.eks_cluster.name
+  cluster_name  = var.cluster_name
   principal_arn = aws_iam_role.eks_argocd.arn
   policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
 
