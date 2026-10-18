@@ -1,0 +1,19 @@
+# ----------------------------------------
+# Argo CD Cluster（自クラスタ）
+# ----------------------------------------
+# EKS capability の Argo CD はクラスタを ARN で登録する。
+# ARN はアカウント ID を含むためコミットせず、apply 時に置き換える（CloudShell で実行）
+#
+#   CLUSTER_ARN=$(aws eks describe-cluster --name dev-eks-load-test --query cluster.arn --output text)
+#   sed "s|CLUSTER_ARN|${CLUSTER_ARN}|" k8s/argocd/cluster-in-cluster.yaml | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: in-cluster
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+stringData:
+  name: in-cluster
+  server: CLUSTER_ARN
+  project: default

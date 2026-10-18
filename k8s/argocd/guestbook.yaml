@@ -1,0 +1,24 @@
+# ----------------------------------------
+# Argo CD Application（guestbook）
+# ----------------------------------------
+# 公式サンプルで手動同期を確かめるためのもの。syncPolicy は書かず、UI の SYNC で同期する
+#
+#   kubectl apply -f k8s/argocd/guestbook.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+  # 削除時にデプロイしたリソースも消す（カスケード削除）
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    # cluster-in-cluster.yaml で登録した名前
+    name: in-cluster
+    namespace: default
