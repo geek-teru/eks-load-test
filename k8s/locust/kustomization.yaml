@@ -1,0 +1,6 @@
+# Locust の manifest。Argo CD の Application（k8s/argocd/locust.yaml）が自動で同期する
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: locust
+resources:
+  - namespace.yaml
