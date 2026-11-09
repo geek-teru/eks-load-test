@@ -63,7 +63,7 @@ module "eks_fargate" {
   service_name = var.service_name
   cluster_name = module.eks_cluster.eks_cluster_name
   subnet_ids   = local.cmn_private_subnet_ids
-  namespaces   = ["kube-system", "default"]
+  namespaces   = ["kube-system", "default", "locust"]
 }
 
 module "eks_argocd" {
