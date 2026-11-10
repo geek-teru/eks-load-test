@@ -1,0 +1,71 @@
+# ----------------------------------------
+# Locust master
+# ----------------------------------------
+# worker からの接続（5557）と Web UI（8089）を受ける。
+# UI に認証が無いため、Service は ClusterIP のみ。CloudShell から port-forward で開く
+#
+#   kubectl -n locust port-forward svc/locust-master 8089:8089
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: locust-master
+  labels:
+    app: locust-master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: locust-master
+  template:
+    metadata:
+      labels:
+        app: locust-master
+    spec:
+      containers:
+        - name: locust
+          image: locustio/locust:2.47.0
+          args: ["--master"]
+          envFrom:
+            - configMapRef:
+                name: locust-config
+          ports:
+            - name: web
+              containerPort: 8089
+            - name: comm
+              containerPort: 5557
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8089
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          volumeMounts:
+            - name: scenarios
+              mountPath: /mnt/locust
+      volumes:
+        - name: scenarios
+          configMap:
+            name: locust-scenarios
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: locust-master
+  labels:
+    app: locust-master
+spec:
+  type: ClusterIP
+  selector:
+    app: locust-master
+  ports:
+    - name: web
+      port: 8089
+      targetPort: 8089
+    - name: comm
+      port: 5557
+      targetPort: 5557

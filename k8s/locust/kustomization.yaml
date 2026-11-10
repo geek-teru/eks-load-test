@@ -4,6 +4,7 @@ kind: Kustomization
 namespace: locust
 resources:
   - namespace.yaml
+  - master.yaml
 configMapGenerator:
   # シナリオ（locustfile）。中身が変わると名前のハッシュが変わり、Pod が入れ替わる
   - name: locust-scenarios
