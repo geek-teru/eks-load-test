@@ -6,17 +6,24 @@ resources:
   - namespace.yaml
   - master.yaml
   - worker.yaml
-# worker の台数。初期値 5。kubectl scale は selfHeal で戻されるので、ここを変えて push する
+# worker の台数。初期値 5（5〜15 の範囲で変える）。kubectl scale は selfHeal で戻されるので、ここを変えて push する
 replicas:
   - name: locust-worker
     count: 5
 configMapGenerator:
-  # シナリオ（locustfile）。中身が変わると名前のハッシュが変わり、Pod が入れ替わる
+  # シナリオ（locustfile）。scenarios/<名前>.py に1ファイル1シナリオで置き、ここにすべて並べる
+  # （キー名 = ファイル名。/mnt/locust/<名前>.py にマウントされる）
+  # 中身が変わると名前のハッシュが変わり、Pod が入れ替わる
   - name: locust-scenarios
     files:
       - smoke.py=scenarios/smoke.py
-  # 対象 URL と実行するシナリオ。LOCUST_HOST は対象アプリの URL に差し替える
+  # 試験の設定。master / worker に環境変数で渡す
   - name: locust-config
     literals:
+      # 対象アプリの URL。シナリオにはホストを書かず、ここで差し替える
       - LOCUST_HOST=https://example.com # TODO: 対象アプリの URL（未決）
+      # 使うシナリオ。切り替えはこの1行（/mnt/locust/<名前>.py）を書き換えて push するだけ
       - LOCUST_LOCUSTFILE=/mnt/locust/smoke.py
+      # Web UI の初期値（ユーザー数・spawn rate）。UI で開始するときに上書きできる
+      - LOCUST_USERS=10
+      - LOCUST_SPAWN_RATE=1
