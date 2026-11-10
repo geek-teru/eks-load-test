@@ -34,9 +34,6 @@ data "aws_identitystore_group" "argocd_admins" {
 locals {
   account_id = data.aws_caller_identity.current.account_id
 
-  cmn_vpc_id             = data.terraform_remote_state.cmn_vpc.outputs.vpc.cmn_vpc.id
-  cmn_private_subnet_ids = data.terraform_remote_state.cmn_vpc.outputs.vpc.cmn_vpc_priv_subnet_ids
-
   cluster_admin_principal_arn = trimspace(data.aws_secretsmanager_secret_version.cluster_admin_principal_arns.secret_string)
 
   idc_instance_arn      = tolist(data.aws_ssoadmin_instances.identity_center.arns)[0]
@@ -46,12 +43,24 @@ locals {
 # ----------------------------------------
 # Modules
 # ----------------------------------------
+module "vpc" {
+  source = "../../modules/vpc"
+
+  env            = var.env
+  service_name   = var.service_name
+  aws_account_id = local.account_id
+
+  vpc_config         = var.cmn_vpc_config
+  pub_subnet_config  = var.pub_subnet_config
+  priv_subnet_config = var.priv_subnet_config
+}
+
 module "eks_cluster" {
   source = "../../modules/eks-cluster"
 
   env          = var.env
   service_name = var.service_name
-  subnet_ids   = local.cmn_private_subnet_ids
+  subnet_ids   = module.vpc.priv_subnet_ids
 
   cluster_admin_principal_arn = local.cluster_admin_principal_arn
 }
@@ -62,8 +71,8 @@ module "eks_fargate" {
   env          = var.env
   service_name = var.service_name
   cluster_name = module.eks_cluster.eks_cluster_name
-  subnet_ids   = local.cmn_private_subnet_ids
-  namespaces   = ["kube-system", "default"]
+  subnet_ids   = module.vpc.priv_subnet_ids
+  namespaces   = ["kube-system", "default", "locust"]
 }
 
 module "eks_argocd" {
@@ -81,13 +90,6 @@ module "eks_argocd" {
 # ----------------------------------------
 # Outputs
 # ----------------------------------------
-output "cmn_vpc_id" {
-  value = local.cmn_vpc_id
-}
-
-output "cmn_private_subnet_ids" {
-  value = local.cmn_private_subnet_ids
-}
 
 output "eks_cluster_name" {
   value = module.eks_cluster.eks_cluster_name
@@ -95,83 +97,4 @@ output "eks_cluster_name" {
 
 output "argocd_server_url" {
   value = module.eks_argocd.argocd_server_url
-}
-
-# ----------------------------------------
-# Moved
-# ----------------------------------------
-# module "eks" を eks_cluster / eks_fargate / eks_argocd に分けたため、state のアドレスを付け替える
-moved {
-  from = module.eks.aws_iam_role.eks_cluster
-  to   = module.eks_cluster.aws_iam_role.eks_cluster
-}
-
-moved {
-  from = module.eks.aws_iam_role_policy_attachment.eks_cluster
-  to   = module.eks_cluster.aws_iam_role_policy_attachment.eks_cluster
-}
-
-moved {
-  from = module.eks.aws_eks_cluster.eks_cluster
-  to   = module.eks_cluster.aws_eks_cluster.eks_cluster
-}
-
-moved {
-  from = module.eks.aws_vpc_security_group_ingress_rule.cluster_https
-  to   = module.eks_cluster.aws_vpc_security_group_ingress_rule.cluster_https
-}
-
-moved {
-  from = module.eks.aws_eks_access_entry.cluster_admin
-  to   = module.eks_cluster.aws_eks_access_entry.cluster_admin
-}
-
-moved {
-  from = module.eks.aws_eks_access_policy_association.cluster_admin
-  to   = module.eks_cluster.aws_eks_access_policy_association.cluster_admin
-}
-
-moved {
-  from = module.eks.aws_eks_addon.vpc_cni
-  to   = module.eks_cluster.aws_eks_addon.vpc_cni
-}
-
-moved {
-  from = module.eks.aws_eks_addon.kube_proxy
-  to   = module.eks_cluster.aws_eks_addon.kube_proxy
-}
-
-moved {
-  from = module.eks.aws_iam_role.eks_fargate_pod
-  to   = module.eks_fargate.aws_iam_role.eks_fargate_pod
-}
-
-moved {
-  from = module.eks.aws_iam_role_policy_attachment.eks_fargate_pod
-  to   = module.eks_fargate.aws_iam_role_policy_attachment.eks_fargate_pod
-}
-
-moved {
-  from = module.eks.aws_eks_fargate_profile.eks_fargate
-  to   = module.eks_fargate.aws_eks_fargate_profile.eks_fargate
-}
-
-moved {
-  from = module.eks.aws_eks_addon.coredns
-  to   = module.eks_fargate.aws_eks_addon.coredns
-}
-
-moved {
-  from = module.eks.aws_iam_role.eks_argocd
-  to   = module.eks_argocd.aws_iam_role.eks_argocd
-}
-
-moved {
-  from = module.eks.aws_eks_capability.argocd
-  to   = module.eks_argocd.aws_eks_capability.argocd
-}
-
-moved {
-  from = module.eks.aws_eks_access_policy_association.argocd
-  to   = module.eks_argocd.aws_eks_access_policy_association.argocd
 }
