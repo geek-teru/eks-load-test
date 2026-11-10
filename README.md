@@ -97,3 +97,73 @@ dev は使うときだけ立てる。クラスタごと消すので、Argo CD �
 ### 料金の注意
 
 Argo CD の capability は、動かしている間ずっと時間課金される。Application がなくても capability の分はかかり、Application があるとその数に応じた時間課金が加わる。EKS クラスタの料金も別にかかるので、使い終わったら destroy する。単価は [Amazon EKS の料金](https://aws.amazon.com/eks/pricing/)を見る。
+
+## 負荷試験の実施
+
+Locust は Web UI から手動で動かす。UI に認証が無いため外には出さず、CloudShell（VPC 環境）から `port-forward` で入る。dev を立ち上げ、Argo CD で `locust` が Synced / Healthy になってから行う。
+
+### 試験の前に
+
+- 対象の URL は `k8s/locust/kustomization.yaml` の `locust-config` の `LOCUST_HOST` で決まる。変えるときは書き換えて main へ push する（Argo CD が同期し、Pod が入れ替わる）
+- 対象は自分が管理する公開済みのアプリだけにする。ホスティング先の規約で負荷試験が許されているかを先に確かめる
+- 初回はユーザー数を小さく（例: 10 ユーザー、spawn rate 1）、数分で止める
+
+Pod が揃っているかを確かめる（master 1 台、worker は `replicas` の台数）。
+
+```bash
+kubectl -n locust get pods
+```
+
+### Web UI を開く
+
+```bash
+kubectl -n locust port-forward svc/locust-master 8089:8089
+```
+
+ブラウザで `http://localhost:8089` を開き、WORKERS が worker の台数になっていることを確かめる。Number of users と Ramp up（spawn rate）を入れて START を押し、数分たったら STOP を押す。
+
+### ブラウザで開けない場合（curl で UI の API を叩く）
+
+CloudShell では port-forward したポートをブラウザで開けないことがある。そのときは、port-forward をバックグラウンドで動かし、同じ CloudShell から curl で操作する。
+
+```bash
+kubectl -n locust port-forward svc/locust-master 8089:8089 >/dev/null 2>&1 &
+U=http://localhost:8089
+
+# 状態と worker の台数（ready / running / stopped）
+curl -s $U/stats/requests | jq '{state, workers: (.workers | length), user_count}'
+
+# 開始（対象は LOCUST_HOST。ユーザー数と spawn rate を指定する）
+curl -s -X POST $U/swarm -d user_count=10 -d spawn_rate=1
+
+# 途中経過
+curl -s $U/stats/requests | jq '.stats[] | {name, num_requests, num_failures, avg_response_time}'
+
+# 停止（POST で呼ぶ）
+curl -s -X POST $U/stop
+```
+
+### 結果（CSV）の取り出し
+
+結果は手元に保存し、リポジトリには置かない。止めたあと、次の試験を始める前に取り出す（START し直すと集計が消える）。
+
+- ブラウザで開けた場合: UI の DOWNLOAD DATA から、Statistics・Failures・Exceptions の CSV と HTML のレポートをダウンロードする
+- curl の場合: CloudShell に保存してから、CloudShell の「アクション」→「ファイルのダウンロード」で手元に落とす
+
+  ```bash
+  D=locust-$(date +%Y%m%d-%H%M)
+  mkdir -p $D
+  curl -s -o $D/stats.csv      $U/stats/requests/csv
+  curl -s -o $D/failures.csv   $U/stats/failures/csv
+  curl -s -o $D/exceptions.csv $U/exceptions/csv
+  curl -s -o $D/report.html    $U/stats/report
+  zip -r $D.zip $D
+  ```
+
+### worker の台数を変える
+
+`k8s/locust/kustomization.yaml` の `replicas`（`name: locust-worker`）の `count` を変えて main へ push する。`kubectl scale` は Argo CD の selfHeal で戻されるので使わない。Fargate は Pod ごとに起動に 30〜60 秒かかるので、UI の WORKERS が揃ってから始める。
+
+### 終わったら
+
+試験が終わったら、「dev の立ち上げと片付け」の「片付け」のとおり `terraform-destroy` で dev を落とす。
