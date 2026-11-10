@@ -1,0 +1,30 @@
+# ----------------------------------------
+# Argo CD Application（locust）
+# ----------------------------------------
+# k8s/locust/ を main から自動で同期する（prune・selfHeal あり。kubectl で直接変えたものは戻される）
+# クラスタの登録（cluster-in-cluster.yaml）のあとに、CloudShell から apply する
+#
+#   kubectl apply -f k8s/argocd/locust.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: locust
+  namespace: argocd
+  # 削除時にデプロイしたリソースも消す（カスケード削除）
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/geek-teru/eks-load-test
+    targetRevision: main
+    # kustomization.yaml は Argo CD が自動で認識する
+    path: k8s/locust
+  destination:
+    # cluster-in-cluster.yaml で登録した名前
+    name: in-cluster
+    namespace: locust
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
