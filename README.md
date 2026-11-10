@@ -143,6 +143,38 @@ curl -s $U/stats/requests | jq '.stats[] | {name, num_requests, num_failures, av
 curl -s -X POST $U/stop
 ```
 
+### シナリオを足す・切り替える
+
+シナリオ（locustfile）は `k8s/locust/scenarios/` に1ファイル1シナリオで置き、`locust-scenarios` の ConfigMap にすべて入れる。どれを使うかは `locust-config` の `LOCUST_LOCUSTFILE` の1行で選ぶ。
+
+1. `k8s/locust/scenarios/<名前>.py` を作る
+   - ファイル先頭のコメントに、何を確かめるシナリオか・想定する負荷を書く
+   - 対象のホストは書かない（`HttpUser` の `host` を指定しない）。`LOCUST_HOST` の値が使われる
+   - パスは `self.client.get("/items")` のようにホストからの相対で書く
+2. `k8s/locust/kustomization.yaml` の `locust-scenarios` の `files` に `<名前>.py=scenarios/<名前>.py` を足す（キー名 = ファイル名。`/mnt/locust/<名前>.py` にマウントされる）
+3. 使うときは `locust-config` の `LOCUST_LOCUSTFILE` を `/mnt/locust/<名前>.py` に書き換える
+4. main へ push する。ConfigMap の名前のハッシュが変わるので、Argo CD が同期すると master / worker が新しいシナリオで入れ替わる
+
+push する前に、手元で ConfigMap に入っているかを確かめられる。
+
+```bash
+kubectl kustomize k8s/locust | grep -E 'LOCUST_LOCUSTFILE|^  [a-z0-9_-]+\.py: '
+```
+
+切り替わったかは、Pod が入れ替わったこと（`kubectl -n locust get pods` の AGE）と、Web UI の統計に出るリクエストの名前（パス）で確かめる。
+
+### 対象 URL と UI の初期値を変える
+
+`k8s/locust/kustomization.yaml` の `locust-config` で変えて main へ push する。
+
+| 項目 | 内容 |
+| --- | --- |
+| `LOCUST_HOST` | 対象アプリの URL。シナリオを変えずに別のアプリへ向けられる |
+| `LOCUST_USERS` | Web UI の Number of users の初期値 |
+| `LOCUST_SPAWN_RATE` | Web UI の Ramp up（spawn rate）の初期値 |
+
+`LOCUST_USERS` / `LOCUST_SPAWN_RATE` は初期値なので、UI（または curl の `/swarm`）で開始するときに上書きできる。
+
 ### 結果（CSV）の取り出し
 
 結果は手元に保存し、リポジトリには置かない。止めたあと、次の試験を始める前に取り出す（START し直すと集計が消える）。
@@ -162,7 +194,7 @@ curl -s -X POST $U/stop
 
 ### worker の台数を変える
 
-`k8s/locust/kustomization.yaml` の `replicas`（`name: locust-worker`）の `count` を変えて main へ push する。`kubectl scale` は Argo CD の selfHeal で戻されるので使わない。Fargate は Pod ごとに起動に 30〜60 秒かかるので、UI の WORKERS が揃ってから始める。
+`k8s/locust/kustomization.yaml` の `replicas`（`name: locust-worker`）の `count` を 5〜15 の範囲で変えて main へ push する。`kubectl scale` は Argo CD の selfHeal で戻されるので使わない。Fargate は Pod ごとに起動に 30〜60 秒かかるので、UI の WORKERS が揃ってから始める。
 
 ### 終わったら
 
