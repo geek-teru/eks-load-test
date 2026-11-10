@@ -1,0 +1,44 @@
+# ----------------------------------------
+# Locust worker
+# ----------------------------------------
+# master（Service locust-master）に接続して負荷をかける。
+# master より先に起動しても再接続するので、起動順は制御しない。
+# 台数は kustomization.yaml の replicas（name: locust-worker）で変える。
+# kubectl scale は Argo CD の selfHeal で戻されるので使わない
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: locust-worker
+  labels:
+    app: locust-worker
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: locust-worker
+  template:
+    metadata:
+      labels:
+        app: locust-worker
+    spec:
+      containers:
+        - name: locust
+          image: locustio/locust:2.47.0
+          args: ["--worker", "--master-host", "locust-master"]
+          envFrom:
+            - configMapRef:
+                name: locust-config
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          volumeMounts:
+            - name: scenarios
+              mountPath: /mnt/locust
+      volumes:
+        - name: scenarios
+          configMap:
+            name: locust-scenarios

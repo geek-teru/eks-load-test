@@ -5,6 +5,11 @@ namespace: locust
 resources:
   - namespace.yaml
   - master.yaml
+  - worker.yaml
+# worker の台数。初期値 5。kubectl scale は selfHeal で戻されるので、ここを変えて push する
+replicas:
+  - name: locust-worker
+    count: 5
 configMapGenerator:
   # シナリオ（locustfile）。中身が変わると名前のハッシュが変わり、Pod が入れ替わる
   - name: locust-scenarios
