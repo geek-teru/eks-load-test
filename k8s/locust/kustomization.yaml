@@ -4,3 +4,13 @@ kind: Kustomization
 namespace: locust
 resources:
   - namespace.yaml
+configMapGenerator:
+  # シナリオ（locustfile）。中身が変わると名前のハッシュが変わり、Pod が入れ替わる
+  - name: locust-scenarios
+    files:
+      - smoke.py=scenarios/smoke.py
+  # 対象 URL と実行するシナリオ。LOCUST_HOST は対象アプリの URL に差し替える
+  - name: locust-config
+    literals:
+      - LOCUST_HOST=https://example.com # TODO: 対象アプリの URL（未決）
+      - LOCUST_LOCUSTFILE=/mnt/locust/smoke.py
